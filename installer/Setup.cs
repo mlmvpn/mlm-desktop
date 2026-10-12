@@ -1,6 +1,6 @@
 using System;using System.IO;using System.IO.Compression;using System.Diagnostics;using System.Drawing;using System.Reflection;using System.Threading;using System.Windows.Forms;using Microsoft.Win32;
 [assembly:AssemblyTitle("MLM Desktop Setup")]
-[assembly:AssemblyVersion("0.1.0.0")]
+[assembly:AssemblyVersion("0.1.1.0")]
 namespace MlmSetup {
  static class Setup {
   internal static readonly string InstallDir=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Programs","MLM Desktop");
@@ -30,7 +30,7 @@ namespace MlmSetup {
   internal static void Install(){
    if(!Environment.Is64BitOperatingSystem)throw new PlatformNotSupportedException("MLM Desktop needs 64-bit Windows 10 or 11.");
    using(var net=Registry.LocalMachine.OpenSubKey("SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\v4\\Full")){if(net==null||Convert.ToInt32(net.GetValue("Release",0))<528040)throw new PlatformNotSupportedException("Please install Microsoft .NET Framework 4.8, then run Setup again.");}
-   StopApp();Extract(InstallDir);
+   MlmDesktop.Autostart.Remove();StopApp();Extract(InstallDir);
    File.Copy(Assembly.GetExecutingAssembly().Location,Path.Combine(InstallDir,"Uninstall.exe"),true);
    Directory.CreateDirectory(Path.GetDirectoryName(ThemePath));
    string theme;using(var stream=Assembly.GetExecutingAssembly().GetManifestResourceStream("MLMDesktop.theme"))using(var reader=new StreamReader(stream)){theme=reader.ReadToEnd();}
@@ -38,15 +38,14 @@ namespace MlmSetup {
    using(var prefs=Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize")){if(prefs!=null){systemMode=Convert.ToInt32(prefs.GetValue("SystemUsesLightTheme",0))==0?"Dark":"Light";appMode=Convert.ToInt32(prefs.GetValue("AppsUseLightTheme",0))==0?"Dark":"Light";}}
    theme=theme.Replace("{{WALLPAPER}}",Path.Combine(InstallDir,"assets","MLM Desktop.png")).Replace("{{SYSTEM_MODE}}",systemMode).Replace("{{APP_MODE}}",appMode);
    File.WriteAllText(ThemePath,theme,System.Text.Encoding.Unicode);
-   using(var key=Registry.CurrentUser.CreateSubKey(Key)){key.SetValue("DisplayName","MLM Desktop");key.SetValue("DisplayVersion","0.1.0 Preview");key.SetValue("Publisher","mlmvpn");key.SetValue("InstallLocation",InstallDir);key.SetValue("DisplayIcon",Path.Combine(InstallDir,"MLMDesktop.exe"));key.SetValue("UninstallString","\""+Path.Combine(InstallDir,"Uninstall.exe")+"\" --uninstall");key.SetValue("NoModify",1);key.SetValue("NoRepair",1);key.SetValue("EstimatedSize",18000);}
-   using(var key=Registry.CurrentUser.CreateSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Run")){key.SetValue("MLM Desktop","\""+Path.Combine(InstallDir,"MLMDesktop.exe")+"\"");}
+   using(var key=Registry.CurrentUser.CreateSubKey(Key)){key.SetValue("DisplayName","MLM Desktop");key.SetValue("DisplayVersion","0.1.1");key.SetValue("Publisher","mlmvpn");key.SetValue("InstallLocation",InstallDir);key.SetValue("DisplayIcon",Path.Combine(InstallDir,"MLMDesktop.exe"));key.SetValue("UninstallString","\""+Path.Combine(InstallDir,"Uninstall.exe")+"\" --uninstall");key.SetValue("NoModify",1);key.SetValue("NoRepair",1);key.SetValue("EstimatedSize",18000);}
+   MlmDesktop.Autostart.Ensure(Path.Combine(InstallDir,"MLMDesktop.exe"));
    Process.Start(new ProcessStartInfo(Path.Combine(InstallDir,"MLMDesktop.exe")){UseShellExecute=false,CreateNoWindow=true});
   }
   internal static void OpenThemes(){Process.Start(new ProcessStartInfo("ms-settings:themes"){UseShellExecute=true});}
   static void Uninstall(){
    using(var key=Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Themes")){if(key!=null&&string.Equals(key.GetValue("CurrentTheme") as string,ThemePath,StringComparison.OrdinalIgnoreCase)){OpenThemes();throw new IOException("Choose another theme in Windows Settings, then run uninstall again.");}}
-   StopApp();string app=Path.Combine(InstallDir,"MLMDesktop.exe");
-   using(var k=Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Run",true)){if(k!=null){var v=k.GetValue("MLM Desktop") as string;if(v!=null&&v.IndexOf(app,StringComparison.OrdinalIgnoreCase)>=0)k.DeleteValue("MLM Desktop",false);}}
+   MlmDesktop.Autostart.Remove();StopApp();
    bool preserveWallpaper=MlmDesktop.ThemeSelection.WallpaperInUse(Path.Combine(InstallDir,"assets","MLM Desktop.png"));
    foreach(var name in Files){if(preserveWallpaper && name=="assets/MLM Desktop.png")continue;string f=Path.Combine(InstallDir,name);if(File.Exists(f))File.Delete(f);}
    if(File.Exists(ThemePath))File.Delete(ThemePath);

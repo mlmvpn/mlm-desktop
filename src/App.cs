@@ -21,6 +21,7 @@ namespace MlmDesktop {
    bool preview=args.Contains("--preview"),created;
    using(var mutex=new Mutex(true,preview?"Local\\MLMDesktopPreview":"Local\\MLMDesktop",out created)){
     if(!created)return 0;
+    if(!preview)Autostart.EnsureInBackground(System.Reflection.Assembly.GetExecutingAssembly().Location,Log);
     var app=new Application{ShutdownMode=ShutdownMode.OnExplicitShutdown};
     app.DispatcherUnhandledException+=delegate(object s,DispatcherUnhandledExceptionEventArgs e){Log(e.Exception);};
     using(var quit=new EventWaitHandle(false,EventResetMode.AutoReset,preview?"Local\\MLMDesktopPreview.Exit":"Local\\MLMDesktop.Exit")){

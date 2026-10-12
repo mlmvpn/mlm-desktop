@@ -21,3 +21,12 @@
 - Complete uninstall round trip; in-use wallpaper preservation is implemented but not exercised by deleting this development installation.
 
 The 0.1.0 release remains a preview. The passing automated and theme lifecycle checks do not certify the remaining desktop acceptance matrix.
+
+## 0.1.1 release verification
+
+- Rebuilt user changes adding scheduled-task recovery for the installed theme watcher.
+- All 17 existing cloth and theme/input assertions passed.
+- All five installer payload files matched build output by SHA-256 after extraction.
+- Setup version and package filenames updated to 0.1.1.
+- Scheduled-task registration, restart recovery, and uninstall were not exercised in this release run. Earlier native theme lifecycle checks above apply to 0.1.0.
+- Published as a regular release at the owner's request; the known acceptance gaps above remain.
