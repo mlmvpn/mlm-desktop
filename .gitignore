@@ -1,0 +1,10 @@
+# Build outputs
+/dist/
+/tests/*.exe
+/tests/extracted/
+/tests/*.log
+*.pdb
+*.user
+*.suo
+.vs/
+/tests/extracted-final/
