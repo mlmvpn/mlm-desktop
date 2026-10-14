@@ -30,3 +30,13 @@ The 0.1.0 release remains a preview. The passing automated and theme lifecycle c
 - Setup version and package filenames updated to 0.1.1.
 - Scheduled-task registration, restart recovery, and uninstall were not exercised in this release run. Earlier native theme lifecycle checks above apply to 0.1.0.
 - Published as a regular release at the owner's request; the known acceptance gaps above remain.
+
+## 0.2.0 release verification — 2026-10-14
+
+- All eight optimized x64 suites passed: Cloth, Physics, Bending, Grip, Stress, Roll, Contact and DesktopMode.
+- Final source reviewed independently; remaining throughput limitation is documented in physics-baseline.md.
+- Native WPF fold and twist snapshots rendered and visually inspected (physics-fold.png and physics-twist.png).
+- Setup extraction verified all five payload files against build output by SHA-256.
+- Installed locally with Setup --install; exit code 0, registry DisplayVersion 0.2.0, and all five installed payload hashes match build output.
+- Existing MLM theme remained selected. The installed overlay is visible with extended style 0x8080080: toolwindow/noactivate, without appwindow. No Start or desktop shortcut is created; normal mode has no tray implementation.
+- Full icon drag-under-rug interaction, Windows 10, mixed-DPI and uninstall coverage remain as listed above. No claim of 60 FPS or arbitrary-tangle nonintersection is made.

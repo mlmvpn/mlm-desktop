@@ -1,0 +1,6 @@
+using System;using MlmDesktop;
+class RollTests {
+ static int errors;static void Check(bool ok,string name){Console.WriteLine((ok?"PASS ":"FAIL ")+name);if(!ok)errors++;}
+ static int Main(){var c=new Cloth(0,0,640,440);for(int r=0;r<c.Rows;r++)for(int x=0;x<c.Columns;x++){double arc=x*20,angle=arc/50,radius=45+arc*.015;c.Points[r*c.Columns+x]=new V3(150+radius*Math.Sin(angle),r*20,70-radius*Math.Cos(angle));}Array.Copy(c.Points,(V3[])typeof(Cloth).GetField("previous",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Instance).GetValue(c),c.Points.Length);bool finite=true;double maximumStretch=1;for(int k=0;k<300;k++){c.Step(1.0/120);for(int r=0;r<c.Rows;r++)for(int x=0;x<c.Columns;x++){int i=r*c.Columns+x;V3 p=c.Points[i];finite&=!double.IsNaN(p.X)&&!double.IsNaN(p.Y)&&!double.IsNaN(p.Z)&&!double.IsInfinity(p.X)&&!double.IsInfinity(p.Y)&&!double.IsInfinity(p.Z)&&p.Z>=0;if(x<c.Columns-1)maximumStretch=Math.Max(maximumStretch,(p-c.Points[i+1]).Length/20);if(r<c.Rows-1)maximumStretch=Math.Max(maximumStretch,(p-c.Points[i+c.Columns]).Length/20);}}
+ Console.WriteLine("Rolled rug peak stretch: "+maximumStretch);Check(finite,"two-layer roll falls onto the floor without invalid coordinates");Check(maximumStretch<1.6,"rolled fabric retains bounded yarn length while falling");return errors==0?0:1;}
+}

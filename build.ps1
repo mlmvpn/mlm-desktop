@@ -14,10 +14,10 @@ $compilerArgs += (Get-ChildItem "$root\src\*.cs").FullName
 if($LASTEXITCODE -ne 0){throw 'App compilation failed'}
 Copy-Item "$root\src\MLMDesktop.exe.config" $out -Force
 Copy-Item "$root\assets" $out -Recurse -Force
-foreach($suite in @('Cloth','DesktopMode')){
- $sources = @("$root\src\$suite.cs","$root\tests\$($suite)Tests.cs")
- if($suite -eq 'Cloth'){$sources += "$root\src\ClothContacts.cs"}
- & $csc /nologo "/out:$root\tests\$($suite)Tests.exe" @sources
+foreach($suite in @('Cloth','Physics','Bending','Grip','Stress','Roll','Contact','DesktopMode')){
+ $sources = @("$root\tests\$($suite)Tests.cs")
+ if($suite -eq 'DesktopMode'){$sources += "$root\src\DesktopMode.cs"}else{$sources += @("$root\src\Cloth.cs","$root\src\ClothContacts.cs","$root\src\ClothBending.cs")}
+ & $csc /nologo /optimize+ /platform:x64 "/out:$root\tests\$($suite)Tests.exe" @sources
  if($LASTEXITCODE -ne 0){throw 'Test compilation failed'}
  & "$root\tests\$($suite)Tests.exe"
  if($LASTEXITCODE -ne 0){throw "$suite tests failed"}

@@ -48,7 +48,7 @@ namespace MlmDesktop {
   readonly bool preview;readonly string[] args;readonly Grid root=new Grid();readonly Viewport3D viewport=new Viewport3D();
   MeshGeometry3D mesh,shadow;GeometryModel3D rug;Cloth cloth;OrthographicCamera camera;
   readonly Stopwatch clock=Stopwatch.StartNew();double lastTime,accumulator;int quiet;bool awake=true,dragging,moving;
-  Point lastMouse,pressPoint;double lift;IntPtr hwnd;DispatcherTimer desktopTimer;
+  Point lastMouse,pressPoint;V3 grabOffset;double lift;IntPtr hwnd;DispatcherTimer desktopTimer;
   ImageBrush wood;ImageSource rugImage;
   public RugWindow(bool p,string[] a){
    preview=p;args=a;Title=preview?"MLM Desktop — Preview":"MLM Desktop";
@@ -61,7 +61,7 @@ namespace MlmDesktop {
    if(File.Exists(Program.Wallpaper))wood=new ImageBrush(LoadImage(Program.Wallpaper)){Stretch=Stretch.UniformToFill};
    if(preview){root.Background=(Brush)wood??new SolidColorBrush(Color.FromRgb(194,153,103));BuildPreviewCaption();}
    Loaded+=OnLoaded;SizeChanged+=delegate{if(IsLoaded){UpdateCamera();ResetRug();}};
-   viewport.MouseDown+=OnDown;viewport.MouseMove+=OnMove;viewport.MouseUp+=OnUp;
+   viewport.MouseDown+=OnDown;viewport.MouseMove+=OnMove;viewport.MouseUp+=OnUp;viewport.MouseWheel+=OnWheel;
    viewport.LostMouseCapture+=delegate{if(dragging){cloth.Release();dragging=false;awake=true;}};
    KeyDown+=delegate(object s,KeyEventArgs e){if(e.Key==Key.F)ResetRug();if(e.Key==Key.Escape&&dragging){cloth.Release();dragging=false;Mouse.Capture(null);}};
    Closed+=delegate{CompositionTarget.Rendering-=Animate;if(desktopTimer!=null)desktopTimer.Stop();if(dragging)Mouse.Capture(null);};
@@ -73,7 +73,7 @@ namespace MlmDesktop {
    BuildScene();ResetRug();CompositionTarget.Rendering+=Animate;
    if(!preview){desktopTimer=new DispatcherTimer{Interval=TimeSpan.FromMilliseconds(600)};desktopTimer.Tick+=delegate{if(WindowState==WindowState.Minimized)WindowState=WindowState.Normal;Native.PlaceOnDesktop(hwnd);};desktopTimer.Start();Native.PlaceOnDesktop(hwnd);}
    int snapshot=Array.IndexOf(args,"--snapshot");if(preview&&snapshot>=0&&snapshot+1<args.Length){
-    if(args.Contains("--fold")){int i=cloth.Columns-1;var corner=cloth.Points[i];cloth.Grab(i,new V3(corner.X-230,corner.Y+180,85));for(int k=0;k<120;k++)cloth.Step(1.0/120);cloth.Release();for(int k=0;k<150;k++)cloth.Step(1.0/120);UpdateMesh();}
+    if(args.Contains("--fold")||args.Contains("--twist")){int i=cloth.Columns-1;var corner=cloth.Points[i];cloth.Grab(i,new V3(corner.X-230,corner.Y+180,85));for(int k=0;k<120;k++)cloth.Step(1.0/120);if(args.Contains("--twist")){cloth.Twist(Math.PI*.75);for(int k=0;k<150;k++)cloth.Step(1.0/120);}cloth.Release();for(int k=0;k<150;k++)cloth.Step(1.0/120);UpdateMesh();}
     var t=new DispatcherTimer{Interval=TimeSpan.FromMilliseconds(500)};t.Tick+=delegate{t.Stop();SaveSnapshot(args[snapshot+1]);Close();};t.Start();
    }
   }
@@ -96,11 +96,15 @@ namespace MlmDesktop {
    for(int r=0;r<cloth.Rows;r++)for(int c=0;c<cloth.Columns;c++){uv.Add(new Point((double)c/(cloth.Columns-1),(double)r/(cloth.Rows-1)));if(c<cloth.Columns-1 && r<cloth.Rows-1){int i=r*cloth.Columns+c;indices.Add(i);indices.Add(i+cloth.Columns);indices.Add(i+1);indices.Add(i+1);indices.Add(i+cloth.Columns);indices.Add(i+cloth.Columns+1);}}
    uv.Freeze();indices.Freeze();mesh.TextureCoordinates=uv;mesh.TriangleIndices=indices;shadow.TriangleIndices=indices;UpdateMesh();
   }
-  void UpdateMesh(){var points=new Point3DCollection(cloth.Points.Length);var shade=new Point3DCollection(cloth.Points.Length);foreach(var v in cloth.Points){points.Add(new Point3D(v.X,-v.Y,v.Z));shade.Add(new Point3D(v.X+4+v.Z*.10,-v.Y-5-v.Z*.12,-2));}mesh.Positions=points;shadow.Positions=shade;}
+  void UpdateMesh(){var points=new Point3DCollection(cloth.Points.Length);var shade=new Point3DCollection(cloth.Points.Length);foreach(var v in cloth.Points){points.Add(new Point3D(v.X,-v.Y,v.Z));shade.Add(new Point3D(v.X+4+v.Z*.10,-v.Y-5-v.Z*.12,-2));}points.Freeze();shade.Freeze();mesh.Positions=points;shadow.Positions=shade;}
   void Animate(object sender,EventArgs e){
    double now=clock.Elapsed.TotalSeconds;double elapsed=Math.Min(.05,now-lastTime);lastTime=now;if(!awake||cloth==null)return;
-   accumulator+=elapsed;double movement=0;int n=0;while(accumulator>=1.0/120 && n++<6){V3[] before=(V3[])cloth.Points.Clone();cloth.Step(1.0/120);for(int i=0;i<before.Length;i++)movement=Math.Max(movement,(cloth.Points[i]-before[i]).Length);accumulator-=1.0/120;}
-   UpdateMesh();if(!dragging&&movement<.015){quiet++;if(quiet>45)awake=false;}else quiet=0;
+   // Bound work by both tick count and wall time. Under load, discard debt
+   // rather than repeatedly blocking Windows input to catch up.
+   const double step=1.0/240;accumulator+=elapsed;double movement=0,batchStart=clock.Elapsed.TotalSeconds;int n=0;
+   while(accumulator>=step&&n<8&&(n==0||clock.Elapsed.TotalSeconds-batchStart<.008)){cloth.Step(step);movement=Math.Max(movement,cloth.MaximumMotion);accumulator-=step;n++;}
+   if(accumulator>=step)accumulator%=step;
+   if(n==0)return;UpdateMesh();if(!dragging&&movement<.025){quiet++;if(quiet>45)awake=false;}else quiet=0;
   }
   void OnDown(object sender,MouseButtonEventArgs e){
    if(e.ChangedButton==MouseButton.Right)return;Point pt=e.GetPosition(viewport);RayMeshGeometry3DHitTestResult hit=null;
@@ -109,16 +113,17 @@ namespace MlmDesktop {
    if(e.ClickCount==2){ResetRug();return;}
    Point a=mesh.TextureCoordinates[hit.VertexIndex1],b=mesh.TextureCoordinates[hit.VertexIndex2],c=mesh.TextureCoordinates[hit.VertexIndex3]; Point uv=new Point(a.X*hit.VertexWeight1+b.X*hit.VertexWeight2+c.X*hit.VertexWeight3,a.Y*hit.VertexWeight1+b.Y*hit.VertexWeight2+c.Y*hit.VertexWeight3); moving=e.ChangedButton==MouseButton.Middle || DesktopMode.MoveWhole(uv.X,uv.Y);
    dragging=true;pressPoint=lastMouse=pt;lift=hit.PointHit.Z;awake=true;quiet=0;
-   if(!moving){int index=hit.VertexIndex1;double best=hit.VertexWeight1;if(hit.VertexWeight2>best){index=hit.VertexIndex2;best=hit.VertexWeight2;}if(hit.VertexWeight3>best)index=hit.VertexIndex3;cloth.Grab(index,new V3(pt.X,pt.Y,Math.Max(4,lift)));}
+   if(!moving){int index=hit.VertexIndex1;double best=hit.VertexWeight1;if(hit.VertexWeight2>best){index=hit.VertexIndex2;best=hit.VertexWeight2;}if(hit.VertexWeight3>best)index=hit.VertexIndex3;grabOffset=cloth.Points[index]-new V3(pt.X,pt.Y,lift);cloth.Grab(index,cloth.Points[index]);}
    Mouse.Capture(viewport);viewport.Cursor=Cursors.Hand;e.Handled=true;
   }
   void OnMove(object sender,MouseEventArgs e){if(!dragging)return;Point pt=e.GetPosition(viewport);
    pt.X=Math.Max(12,Math.Min(viewport.ActualWidth-12,pt.X));pt.Y=Math.Max(12,Math.Min(viewport.ActualHeight-12,pt.Y));
-   if(moving){double dx=pt.X-lastMouse.X,dy=pt.Y-lastMouse.Y;cloth.Move(dx,dy);}else{double length=(pt-pressPoint).Length;cloth.Pull(new V3(pt.X,pt.Y,Math.Max(lift,Math.Min(130,14+length*.28))));}
+   if(moving){double dx=pt.X-lastMouse.X,dy=pt.Y-lastMouse.Y;cloth.Move(dx,dy);}else{double length=(pt-pressPoint).Length;cloth.Pull(new V3(pt.X+grabOffset.X,pt.Y+grabOffset.Y,Math.Max(lift+grabOffset.Z,Math.Min(180,12+length*.36))));}
    lastMouse=pt;awake=true;e.Handled=true;
   }
+  void OnWheel(object sender,MouseWheelEventArgs e){if(!dragging||moving)return;cloth.Twist(e.Delta/120.0*Math.PI/12);awake=true;quiet=0;e.Handled=true;}
   void OnUp(object sender,MouseButtonEventArgs e){if(!dragging)return;cloth.Release();dragging=false;Mouse.Capture(null);viewport.Cursor=Cursors.Arrow;awake=true;e.Handled=true;}
-  void BuildPreviewCaption(){var panel=new StackPanel{Orientation=Orientation.Vertical,HorizontalAlignment=HorizontalAlignment.Left,VerticalAlignment=VerticalAlignment.Bottom,Margin=new Thickness(32),IsHitTestVisible=false};panel.Children.Add(new TextBlock{Text="MLM DESKTOP",FontFamily=new FontFamily("Segoe UI Semibold"),FontSize=22,Foreground=new SolidColorBrush(Color.FromRgb(55,34,24))});panel.Children.Add(new TextBlock{Text="Grab a corner. Make a little room.",FontSize=14,Margin=new Thickness(0,6,0,0),Foreground=new SolidColorBrush(Color.FromRgb(74,49,31))});root.Children.Add(panel);}
+  void BuildPreviewCaption(){var panel=new StackPanel{Orientation=Orientation.Vertical,HorizontalAlignment=HorizontalAlignment.Left,VerticalAlignment=VerticalAlignment.Bottom,Margin=new Thickness(32),IsHitTestVisible=false};panel.Children.Add(new TextBlock{Text="MLM DESKTOP",FontFamily=new FontFamily("Segoe UI Semibold"),FontSize=22,Foreground=new SolidColorBrush(Color.FromRgb(55,34,24))});panel.Children.Add(new TextBlock{Text="Drag center to move · Drag edge to fold · Hold edge + wheel to twist",FontSize=14,Margin=new Thickness(0,6,0,0),Foreground=new SolidColorBrush(Color.FromRgb(74,49,31))});root.Children.Add(panel);}
   void SaveSnapshot(string path){var bitmap=new RenderTargetBitmap((int)root.ActualWidth,(int)root.ActualHeight,96,96,PixelFormats.Pbgra32);bitmap.Render(root);var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));using(var stream=File.Create(path))encoder.Save(stream);}
  }
 }
