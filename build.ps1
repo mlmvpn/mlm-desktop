@@ -1,4 +1,4 @@
-param([switch]$SkipInstaller)
+param([switch]$SkipInstaller,[ValidateSet('Cloth','Physics','Bending','Grip','Stress','DesktopPhysics','Roll','Contact','DesktopMode','NativePlacement')][string[]]$Suites=@('Cloth','Physics','Bending','Grip','Stress','DesktopPhysics','Roll','Contact','DesktopMode','NativePlacement'))
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
@@ -14,13 +14,14 @@ $compilerArgs += (Get-ChildItem "$root\src\*.cs").FullName
 if($LASTEXITCODE -ne 0){throw 'App compilation failed'}
 Copy-Item "$root\src\MLMDesktop.exe.config" $out -Force
 Copy-Item "$root\assets" $out -Recurse -Force
-foreach($suite in @('Cloth','Physics','Bending','Grip','Stress','Roll','Contact','DesktopMode')){
+foreach($suite in $Suites){
  $sources = @("$root\tests\$($suite)Tests.cs")
- if($suite -eq 'DesktopMode'){$sources += "$root\src\DesktopMode.cs"}else{$sources += @("$root\src\Cloth.cs","$root\src\ClothContacts.cs","$root\src\ClothBending.cs")}
+ if($suite -eq 'DesktopMode'){$sources += "$root\src\DesktopMode.cs"}elseif($suite -eq 'NativePlacement'){$sources += "$root\src\Native.cs"}else{$sources += @("$root\src\Cloth.cs","$root\src\ClothContacts.cs","$root\src\ClothBending.cs")}
  & $csc /nologo /optimize+ /platform:x64 "/out:$root\tests\$($suite)Tests.exe" @sources
  if($LASTEXITCODE -ne 0){throw 'Test compilation failed'}
  & "$root\tests\$($suite)Tests.exe"
  if($LASTEXITCODE -ne 0){throw "$suite tests failed"}
+ if($suite -eq 'Contact'){& "$root\tests\ContactTests.exe" --desktop;if($LASTEXITCODE -ne 0){throw 'Desktop contact tests failed'}}
 }
 if(!$SkipInstaller){& "$root\installer\build-installer.ps1"}
 Write-Host "Built: $out\MLMDesktop.exe"

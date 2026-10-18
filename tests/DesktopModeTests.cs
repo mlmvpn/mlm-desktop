@@ -9,6 +9,7 @@ class DesktopModeTests {
  Check(!DesktopMode.Active(null,"a.theme",null,"rug.png",true),"missing Windows state leaves rug disabled");
  Check(DesktopMode.MoveWhole(.5,.5),"plain drag in middle moves whole rug");
  Check(!DesktopMode.MoveWhole(.02,.5)&&!DesktopMode.MoveWhole(.98,.5)&&!DesktopMode.MoveWhole(.5,.02)&&!DesktopMode.MoveWhole(.5,.98),"all four edges fold without modifier keys");
+ Check(!DesktopMode.MoveWhole(.15,.15)&&!DesktopMode.MoveWhole(.85,.15)&&!DesktopMode.MoveWhole(.15,.85)&&!DesktopMode.MoveWhole(.85,.85),"decorative corners fold instead of translating the rug");
  return errors==0?0:1;
  }
 }

@@ -7,6 +7,7 @@ using MlmDesktop;
 // Compile beside Cloth.cs, ClothContacts.cs and ClothBending.cs, or reference a frozen baseline DLL.
 internal static class PhysicsDiagnostics {
  const double Width=640, Height=440;
+ static bool desktop;static Cloth NewCloth(){return desktop?new Cloth(0,0,Width,Height,13,9):new Cloth(0,0,Width,Height);}
  static readonly CultureInfo Invariant=CultureInfo.InvariantCulture;
  sealed class Metrics {
   internal double PeakStretch=1, FinalStretch=1, PeakZ, FinalZ, FinalRmsSpeed, HandError, FarCornerTravel;
@@ -30,7 +31,7 @@ internal static class PhysicsDiagnostics {
   return new V3(200+150*Math.Cos(a),180+150*Math.Sin(a),130+25*Math.Sin(a*.5));
  }
  static Metrics Trajectory(string scenario,double hz){
-  Cloth cloth=new Cloth(0,0,Width,Height);
+  Cloth cloth=NewCloth();
   V3[] before=new V3[cloth.Points.Length];
   V3 farStart=cloth.Points[cloth.Points.Length-1];
   double dt=1/hz,held=scenario=="fast"?.75:2.75, duration=held+4;
@@ -57,7 +58,7 @@ internal static class PhysicsDiagnostics {
   return m;
  }
  static Cloth Hold(double hz){
-  Cloth c=new Cloth(0,0,Width,Height);c.Grab(0,new V3(260,160,120));
+  Cloth c=NewCloth();c.Grab(0,new V3(260,160,120));
   for(int i=0;i<(int)hz;i++)c.Step(1/hz);
   return c;
  }
@@ -73,7 +74,7 @@ internal static class PhysicsDiagnostics {
  static string Format(double x){return x.ToString("F6",Invariant);}
  static void Bench(string scenario){
   const int Count=900;const double Dt=1.0/120;
-  Cloth c=new Cloth(0,0,Width,Height);V3[] targets=new V3[Count];long[] ticks=new long[Count];
+  Cloth c=NewCloth();V3[] targets=new V3[Count];long[] ticks=new long[Count];
   c.Grab(0,new V3(0,0,0));
   for(int i=0;i<Count;i++)targets[i]=Target("twist",(300+i+1)*Dt);
   for(int i=0;i<300;i++){if(scenario=="twist")c.Pull(Target("twist",(i+1)*Dt));c.Step(Dt);}
@@ -89,8 +90,9 @@ internal static class PhysicsDiagnostics {
   Console.WriteLine(scenario+","+Format(wall.Elapsed.TotalMilliseconds/Count)+","+Format(ticks[Count/2]*factor)+","+Format(ticks[(int)(Count*.95)]*factor)+","+Format((double)bytes/Count)+","+gc0);
  }
  static void Main(string[] args){
+  desktop=Array.IndexOf(args,"--desktop")>=0;
   Console.WriteLine("Runtime="+Environment.Version+"; 64bit="+Environment.Is64BitProcess+"; CPU="+Environment.ProcessorCount);
-  if(args.Length>0&&args[0]=="--bench-only"){Console.WriteLine("benchmark,mean_ms_step,median_ms_step,p95_ms_step,allocated_bytes_step,gen0_collections");Bench("flat");Bench("twist");return;}
+  if(Array.IndexOf(args,"--bench-only")>=0){Console.WriteLine("benchmark,mean_ms_step,median_ms_step,p95_ms_step,allocated_bytes_step,gen0_collections");Bench("flat");Bench("twist");return;}
   Timesteps();
   Console.WriteLine("trajectory,hz,peak_stretch,final_stretch,peak_z_px,final_z_px,final_rms_speed_px_sec,peak_hand_error_px,far_corner_travel_px,finite_above_floor");
   foreach(string scenario in new string[]{"fast","twist"}){

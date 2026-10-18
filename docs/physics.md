@@ -1,12 +1,12 @@
 # Rug physics
 
-The desktop uses a fixed 240 Hz physical clock, independent of the WPF render clock. Large pauses have a sixteen-tick work limit instead of an unbounded catch-up loop. Zero or invalid elapsed time does not alter the cloth.
+The desktop uses a fixed 240 Hz physical clock, independent of the WPF render clock. The render loop bounds catch-up work instead of running an unbounded loop. Zero or invalid elapsed time does not alter the cloth.
 
 ## Material and input
 
-The 33 × 23 particle grid has stiff warp/weft distances, compliant diagonal shear constraints, and signed dihedral hinges along triangle boundaries. XPBD multipliers reset each physical tick. A separate compression and tension limiter prevents accumulation of extreme stretch under sustained input. Stretch, bending, floor constraints and cached contacts are relaxed together, retaining XPBD multipliers throughout each physical tick.
+The desktop uses a 13 × 9 particle grid; dense regression fixtures retain 33 × 23. Stiff warp/weft distances and one compliant, mesh-aligned shear diagonal per quad preserve fabric length while signed dihedral hinges allow folds. A second crossing diagonal was removed because it braced each quad against folding. XPBD multipliers reset each physical tick. A separate compression and tension limiter prevents accumulation of extreme stretch under sustained input. Stretch, bending, floor constraints and cached contacts are relaxed together, retaining XPBD multipliers throughout each physical tick.
 
-The mouse drives a bounded-speed hand target. Travel per tick is limited relative to the mesh spacing, preventing a single mouse event from teleporting a corner across the rug. A soft local grip distributes the pull across nearby particles. Wheel input while holding an edge rotates that grip in 15-degree increments; the solver eases into the requested angle. Grabbing preserves the offset to the picked fabric point.
+The central 50% rectangle moves the whole rug with plain drag; the surrounding area, including decorative corners, folds locally. The mouse drives a bounded-speed hand target. Travel per tick is limited relative to the mesh spacing, preventing a single mouse event from teleporting a corner across the rug. A soft local grip distributes the pull across nearby particles. Wheel input while holding an edge rotates that grip in 15-degree increments; the solver eases into the requested angle. Grabbing preserves the offset to the picked fabric point.
 
 The floor has no bounce and dissipates tangential motion. Layer contacts dissipate inward velocity. The app stops updating the mesh after the released cloth settles and wakes it on interaction.
 
@@ -20,7 +20,7 @@ This is an interactive discrete cloth model, not a certified intersection-free s
 
 The solver reuses particle snapshots, multipliers, spatial buckets and contact arrays. It does not clone the particle grid every tick. WPF rendering receives frozen geometry collections only while the cloth is awake.
 
-The render loop performs individual 240 Hz ticks with an 8 ms soft wall-time budget and an eight-tick hard limit per callback. A single tick can overrun the soft budget. Excess catch-up debt is discarded to keep input responsive; on slower CPUs or complicated folds this means simulation runs slower than wall time. This version prioritizes layer handling over real-time throughput and does not promise 60 FPS.
+The render loop performs individual 240 Hz ticks with a 12 ms soft wall-time budget and an eight-tick hard limit per callback. A single tick can overrun the soft budget. Excess catch-up debt is discarded to keep input responsive; on slower CPUs or complicated folds this means simulation runs slower than wall time. The coarser desktop mesh reduces contact cost, with less fine-scale fold detail. This does not promise 60 FPS. Repeated circular pulls can retain slow contact creep after release; the desktop fixture does not satisfy the dense solver settling threshold.
 
 See [baseline measurements](physics-baseline.md). Benchmarks should run sequentially on the same machine; they report solver time, not end-to-end rendered FPS.
 

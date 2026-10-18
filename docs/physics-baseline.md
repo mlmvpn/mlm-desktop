@@ -74,7 +74,7 @@ The [XPBD paper by Macklin, Mueller, and Chentanez](https://matthias-research.gi
 The [PositionBasedDynamics authors' dihedral solver](https://github.com/InteractiveComputerGraphics/PositionBasedDynamics/blob/master/PositionBasedDynamics/PositionBasedDynamics.cpp) contains analytic angle gradients in `solve_DihedralConstraint`. Its shared-edge endpoints are `p2,p3`; `p0,p1` are the opposite vertices. Preserve that ordering and the signed orientation when adapting the formulas. Guard degenerate triangle normals as well as short edges. A finite-difference check of the chosen signed constraint is useful during implementation, especially near a flat configuration.
 
 
-## 0.2.0 release measurements — 2026-10-14
+## Rejected 0.2.0 candidate measurements — 2026-10-14
 
 The final solver retains 759 particles, uses 240 Hz physical ticks, XPBD stretch/shear, signed angular bending, and swept 3D contacts. The optimized hinge was compared with its vector formulation on 2,500 seeded configurations with zero observed difference. All eight regression suites passed in the release build.
 
@@ -95,3 +95,19 @@ Same eight-logical-processor machine and optimized x64 compiler, 300 warmup and 
 The flat case uses an analytically resting floor state, after checking public particle positions and previous positions. The continuous-twist measurement uses the final collision/bending implementation; it was taken immediately before adding the flat-only shortcut, which does not apply during that moving trajectory. The flat case was then remeasured separately after the shortcut.
 
 **Tradeoff:** collision fidelity and allocation pressure improved, but active solver CPU time is substantially worse than the old spring solver. Dense repeated twisting is not real-time on this machine. Rendering limits each batch to eight physical ticks and a soft 8 ms wall-time budget, dropping catch-up debt; a single expensive tick can exceed this budget, and simulated time slows under load. These numbers are solver timings, not rendered FPS. The next performance milestone is reducing active contact cost without losing the passing geometry fixtures.
+## 0.2.1 desktop measurements — 2026-10-18
+
+The 0.2.0 candidate above was installed, rejected for mouse lag, and rolled back to 0.1.1. Its tag exists, but no GitHub release was published.
+
+The desktop now uses 117 particles (13 × 9), with a single mesh-aligned shear diagonal per quad. The second diagonal prevented local hinge folding: in the one-second corner-pull fixture, removing it reduced opposite-corner travel from 81.030 px to 11.958 px. Grabbing decorative corners now folds; only the central 50% rectangle translates the rug.
+
+Same benchmark protocol, optimized x64 build; each 1/120-second call contains two physical ticks:
+
+| Scenario | Mean ms/call | Median | p95 | Allocated bytes/call | Gen0 collections |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Flat resting rug | 0.001519 | 0.001500 | 0.001500 | 9.10 | 0 |
+| Continuous twist | 5.057404 | 5.014200 | 7.792200 | 9.10 | 0 |
+
+Continuous twist is about 19 times faster than the rejected dense candidate, with CPU cost comparable to the original 0.1.1 solver. These are solver timings, not rendered FPS or measured mouse latency.
+
+Desktop stress diagnostics: quick drag peak stretch 1.0450 and RMS speed 0.7180 px/s after six simulated seconds; circular pull peak stretch 1.0522 and RMS speed 4.3210 px/s. The latter does **not** meet the dense solver's 2 px/s settling target. Desktop regression coverage asserts finite positions, floor support, bounded stretch and local corner response; it does not conceal this remaining creep with a weaker settling assertion. Dense 33 × 23 stress tests still pass separately. Coarser geometry trades fine fold detail for interactive throughput.

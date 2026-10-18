@@ -21,7 +21,7 @@ namespace MlmDesktop {
  public sealed class Cloth {
   struct Link {public int A,B;public double Rest,Compliance;public Link(int a,int b,double rest,double compliance){A=a;B=b;Rest=rest;Compliance=compliance;}}
   const double Tick=1.0/240,Gravity=4200,HandSpeed=1800;
-  public readonly int Columns=33,Rows=23;
+  public readonly int Columns,Rows;
   public readonly V3[] Points;
   readonly V3[] previous,start,velocities;
   readonly Link[] links;
@@ -33,15 +33,17 @@ namespace MlmDesktop {
   readonly int[] grip=new int[8];readonly V3[] gripOffset=new V3[8];int gripCount;double twist,twistTarget;
   public int Grabbed=-1;
   public double MaximumMotion {get;private set;}
-  public Cloth(double x,double y,double w,double h){
+  public Cloth(double x,double y,double w,double h,int columns=33,int rows=23){
+   if(columns<3||rows<3||columns>65||rows>65)throw new ArgumentOutOfRangeException("columns","Cloth grid must be between 3 and 65 nodes per axis.");Columns=columns;Rows=rows;
    originX=x;originY=y;width=w;height=h;
    Points=new V3[Columns*Rows];previous=new V3[Points.Length];start=new V3[Points.Length];velocities=new V3[Points.Length];
-   contacts=new ClothContacts(Columns,Rows,Tick);Flatten();
+   contacts=new ClothContacts(Columns,Rows,Tick,Columns<=17?1:2);Flatten();
    var built=new List<Link>();
    for(int r=0;r<Rows;r++)for(int c=0;c<Columns;c++){
     int i=r*Columns+c;
     if(c+1<Columns)Add(built,i,i+1,1e-8);if(r+1<Rows)Add(built,i,i+Columns,1e-8);
-    if(c+1<Columns&&r+1<Rows){Add(built,i,i+Columns+1,8e-8);Add(built,i+1,i+Columns,8e-8);}
+    // Match the rendered triangle edge. A second crossing diagonal locks the hinge into a rigid quad.
+    if(c+1<Columns&&r+1<Rows)Add(built,i+1,i+Columns,8e-8);
 
    }
    links=built.ToArray();lambdas=new double[links.Length];
@@ -95,7 +97,7 @@ namespace MlmDesktop {
   void Simulate(){
    if(RestingFlat())return;
    Array.Copy(Points,start,Points.Length);Array.Clear(lambdas,0,lambdas.Length);Array.Clear(bendLambdas,0,bendLambdas.Length);
-   if(Grabbed>=0){V3 delta=target-hand;double length=delta.Length;double handStep=Math.Min(HandSpeed*Tick,.4*Tick*120*Math.Min(width/(Columns-1),height/(Rows-1)));hand+=delta*(length>handStep?handStep/length:1);}
+   if(Grabbed>=0){V3 delta=target-hand;double length=delta.Length;double handStep=Math.Min(HandSpeed*Tick,(Columns<=17?.2:.4)*Tick*120*Math.Min(width/(Columns-1),height/(Rows-1)));hand+=delta*(length>handStep?handStep/length:1);}
    for(int i=0;i<Points.Length;i++){
     V3 p=Points[i],v=(p-previous[i])*.994485;
     if(p.Z<.05||contacts.Supported[i]){v.X*=.848528;v.Y*=.848528;}

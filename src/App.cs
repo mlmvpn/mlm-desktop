@@ -60,6 +60,7 @@ namespace MlmDesktop {
    rugImage=LoadImage(Path.Combine(Program.Assets,"rug.png"));
    if(File.Exists(Program.Wallpaper))wood=new ImageBrush(LoadImage(Program.Wallpaper)){Stretch=Stretch.UniformToFill};
    if(preview){root.Background=(Brush)wood??new SolidColorBrush(Color.FromRgb(194,153,103));BuildPreviewCaption();}
+   SourceInitialized+=delegate{hwnd=new WindowInteropHelper(this).Handle;if(!preview){long style=Native.GetWindowLongPtr(hwnd,-20).ToInt64();Native.SetWindowLongPtr(hwnd,-20,new IntPtr(style|0x08000080));HwndSource.FromHwnd(hwnd).AddHook(Hook);}if(!preview)Native.PlaceOnDesktop(hwnd);};
    Loaded+=OnLoaded;SizeChanged+=delegate{if(IsLoaded){UpdateCamera();ResetRug();}};
    viewport.MouseDown+=OnDown;viewport.MouseMove+=OnMove;viewport.MouseUp+=OnUp;viewport.MouseWheel+=OnWheel;
    viewport.LostMouseCapture+=delegate{if(dragging){cloth.Release();dragging=false;awake=true;}};
@@ -69,7 +70,7 @@ namespace MlmDesktop {
   static BitmapImage LoadImage(string path){var b=new BitmapImage();b.BeginInit();b.UriSource=new Uri(path);b.CacheOption=BitmapCacheOption.OnLoad;b.EndInit();b.Freeze();return b;}
   void OnLoaded(object sender,RoutedEventArgs e){
    hwnd=new WindowInteropHelper(this).Handle;
-   if(!preview){long style=Native.GetWindowLongPtr(hwnd,-20).ToInt64();Native.SetWindowLongPtr(hwnd,-20,new IntPtr(style|0x08000080));HwndSource.FromHwnd(hwnd).AddHook(Hook);}
+
    BuildScene();ResetRug();CompositionTarget.Rendering+=Animate;
    if(!preview){desktopTimer=new DispatcherTimer{Interval=TimeSpan.FromMilliseconds(600)};desktopTimer.Tick+=delegate{if(WindowState==WindowState.Minimized)WindowState=WindowState.Normal;Native.PlaceOnDesktop(hwnd);};desktopTimer.Start();Native.PlaceOnDesktop(hwnd);}
    int snapshot=Array.IndexOf(args,"--snapshot");if(preview&&snapshot>=0&&snapshot+1<args.Length){
@@ -77,7 +78,7 @@ namespace MlmDesktop {
     var t=new DispatcherTimer{Interval=TimeSpan.FromMilliseconds(500)};t.Tick+=delegate{t.Stop();SaveSnapshot(args[snapshot+1]);Close();};t.Start();
    }
   }
-  IntPtr Hook(IntPtr h,int msg,IntPtr w,IntPtr l,ref bool handled){if(msg==0x21){handled=true;return new IntPtr(3);}if(msg==0x7E){Width=SystemParameters.PrimaryScreenWidth;Height=SystemParameters.PrimaryScreenHeight;ResetRug();}return IntPtr.Zero;}
+  IntPtr Hook(IntPtr h,int msg,IntPtr w,IntPtr l,ref bool handled){if(!preview&&msg==0x46)Native.ProtectZOrder(l);if(msg==0x21){handled=true;return new IntPtr(3);}if(msg==0x7E){Width=SystemParameters.PrimaryScreenWidth;Height=SystemParameters.PrimaryScreenHeight;ResetRug();}return IntPtr.Zero;}
   void BuildScene(){
    camera=new OrthographicCamera{LookDirection=new Vector3D(0,0,-1),UpDirection=new Vector3D(0,1,0),NearPlaneDistance=.1,FarPlaneDistance=4000};viewport.Camera=camera;UpdateCamera();
    var group=new Model3DGroup();group.Children.Add(new AmbientLight(Color.FromRgb(170,170,170)));group.Children.Add(new DirectionalLight(Color.FromRgb(110,106,100),new Vector3D(.3,-.5,-1)));
@@ -91,7 +92,7 @@ namespace MlmDesktop {
   void UpdateCamera(){if(camera==null)return;double w=Math.Max(1,viewport.ActualWidth),h=Math.Max(1,viewport.ActualHeight);camera.Position=new Point3D(w/2,-h/2,1600);camera.Width=w;}
   void ResetRug(){
    double w=Math.Max(300,viewport.ActualWidth),h=Math.Max(250,viewport.ActualHeight);double rw=Math.Min(760,w*.55),rh=rw*2/3;
-   cloth=new Cloth((w-rw)/2,(h-rh)/2,rw,rh);awake=true;quiet=0;
+   cloth=new Cloth((w-rw)/2,(h-rh)/2,rw,rh,13,9);awake=true;quiet=0;
    if(mesh==null)return;var uv=new PointCollection();var indices=new Int32Collection();
    for(int r=0;r<cloth.Rows;r++)for(int c=0;c<cloth.Columns;c++){uv.Add(new Point((double)c/(cloth.Columns-1),(double)r/(cloth.Rows-1)));if(c<cloth.Columns-1 && r<cloth.Rows-1){int i=r*cloth.Columns+c;indices.Add(i);indices.Add(i+cloth.Columns);indices.Add(i+1);indices.Add(i+1);indices.Add(i+cloth.Columns);indices.Add(i+cloth.Columns+1);}}
    uv.Freeze();indices.Freeze();mesh.TextureCoordinates=uv;mesh.TriangleIndices=indices;shadow.TriangleIndices=indices;UpdateMesh();
@@ -102,7 +103,7 @@ namespace MlmDesktop {
    // Bound work by both tick count and wall time. Under load, discard debt
    // rather than repeatedly blocking Windows input to catch up.
    const double step=1.0/240;accumulator+=elapsed;double movement=0,batchStart=clock.Elapsed.TotalSeconds;int n=0;
-   while(accumulator>=step&&n<8&&(n==0||clock.Elapsed.TotalSeconds-batchStart<.008)){cloth.Step(step);movement=Math.Max(movement,cloth.MaximumMotion);accumulator-=step;n++;}
+   while(accumulator>=step&&n<8&&(n==0||clock.Elapsed.TotalSeconds-batchStart<.012)){cloth.Step(step);movement=Math.Max(movement,cloth.MaximumMotion);accumulator-=step;n++;}
    if(accumulator>=step)accumulator%=step;
    if(n==0)return;UpdateMesh();if(!dragging&&movement<.025){quiet++;if(quiet>45)awake=false;}else quiet=0;
   }

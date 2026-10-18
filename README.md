@@ -6,7 +6,7 @@ A soft Persian rug over the **real Windows desktop**, controlled through a named
 
 ## نصب و استفاده
 
-1. فایل **MLMDesktop-Setup-0.2.0.exe** را نصب کنید. تنظیمات **Personalization → Themes** باز می‌شود.
+1. فایل **MLMDesktop-Setup-0.2.1.exe** را نصب کنید. تنظیمات **Personalization → Themes** باز می‌شود.
 2. تم **MLM Desktop** را انتخاب کنید تا پارکت و قالیچه فعال شوند.
 3. برای خاموش‌کردن قالیچه، تم دیگری انتخاب کنید. تغییر تصویر زمینه هم قالیچه را خاموش می‌کند.
 4. برای پیچاندن، لبه را نگه دارید و چرخ موس را بچرخانید.
@@ -16,7 +16,7 @@ A soft Persian rug over the **real Windows desktop**, controlled through a named
 
 ## Install
 
-Download Setup from [Releases](https://github.com/mlmvpn/mlm-desktop/releases). Requires Windows 10/11 **x64** and **.NET Framework 4.8**. Per-user installation; no administrator rights required. The unsigned 0.2.0 release may show an unknown-publisher prompt. The app uses no network connection or account.
+Download Setup from [Releases](https://github.com/mlmvpn/mlm-desktop/releases). Requires Windows 10/11 **x64** and **.NET Framework 4.8**. Per-user installation; no administrator rights required. The unsigned 0.2.1 release may show an unknown-publisher prompt. The app uses no network connection or account.
 
 Setup installs the theme without applying it, starts the invisible theme watcher (kept alive by a per-user Run entry and a hidden per-user scheduled task that relaunches it within a minute if it is not running; no admin rights), and opens Windows Settings → Personalization → Themes. Select **MLM Desktop** to enable. Select another theme or change the background to disable. The rug follows the installed theme and its parquet image; it does not replace or restore wallpaper independently of Windows.
 
@@ -55,7 +55,7 @@ Uses the .NET Framework C# compiler supplied with Windows. No NuGet or SDK downl
 ```powershell
 .\dist\app\MLMDesktop.exe --preview
 .\dist\app\MLMDesktop.exe --preview --fold --snapshot "$PWD\fold.png"
-.\dist\MLMDesktop-Setup-0.2.0.exe --extract "$PWD\test-extract"
+.\dist\MLMDesktop-Setup-0.2.1.exe --extract "$PWD\test-extract"
 ```
 
 See [validation notes](docs/VALIDATION.md). The developer preview window intentionally has a normal window frame; the installed desktop mode does not.

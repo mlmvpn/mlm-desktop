@@ -24,8 +24,8 @@ namespace MlmDesktop {
   internal int SweptContactCount {get;private set;}
   internal double MaximumCorrection {get;private set;}
   const double Cell=24,Thickness=3.5,Margin=17.5;
-  internal ClothContacts(int c,int rows,double step=1.0/120){contactAlpha=.2/(14400*step*step);
-   vertexCount=c*rows;materialOrder=new int[vertexCount];for(int i=0;i<vertexCount;i++)materialOrder[i]=(i%c)*vertexCount+i/c;remainingCorrection=new double[vertexCount];usedCorrection=new double[vertexCount];neighbors=new bool[vertexCount*vertexCount];for(int y=0;y<rows;y++)for(int x=0;x<c;x++)for(int dy=-2;dy<=2;dy++)for(int dx=-2;dx<=2;dx++)if(x+dx>=0&&x+dx<c&&y+dy>=0&&y+dy<rows)neighbors[(y*c+x)*vertexCount+(y+dy)*c+x+dx]=true;Supported=new bool[c*rows];triangles=new Triangle[(c-1)*(rows-1)*2];int n=0;
+  internal ClothContacts(int c,int rows,double step=1.0/120,int neighborRadius=2){contactAlpha=.2/(14400*step*step);
+   vertexCount=c*rows;materialOrder=new int[vertexCount];for(int i=0;i<vertexCount;i++)materialOrder[i]=(i%c)*vertexCount+i/c;remainingCorrection=new double[vertexCount];usedCorrection=new double[vertexCount];neighbors=new bool[vertexCount*vertexCount];for(int y=0;y<rows;y++)for(int x=0;x<c;x++)for(int dy=-neighborRadius;dy<=neighborRadius;dy++)for(int dx=-neighborRadius;dx<=neighborRadius;dx++)if(x+dx>=0&&x+dx<c&&y+dy>=0&&y+dy<rows)neighbors[(y*c+x)*vertexCount+(y+dy)*c+x+dx]=true;Supported=new bool[c*rows];triangles=new Triangle[(c-1)*(rows-1)*2];int n=0;
    for(int y=0;y<rows-1;y++)for(int x=0;x<c-1;x++){int a=y*c+x;triangles[n++]=new Triangle(a,a+c,a+1);triangles[n++]=new Triangle(a+1,a+c,a+c+1);}
       edges=new Edge[(c-1)*rows+c*(rows-1)+(c-1)*(rows-1)];n=0;
    for(int y=0;y<rows;y++)for(int x=0;x<c;x++){int a=y*c+x;if(x+1<c)edges[n++]=new Edge(a,a+1);if(y+1<rows)edges[n++]=new Edge(a,a+c);if(x+1<c&&y+1<rows)edges[n++]=new Edge(a+1,a+c);}

@@ -1,6 +1,6 @@
 using System;using System.IO;using System.IO.Compression;using System.Diagnostics;using System.Drawing;using System.Reflection;using System.Threading;using System.Windows.Forms;using Microsoft.Win32;
 [assembly:AssemblyTitle("MLM Desktop Setup")]
-[assembly:AssemblyVersion("0.2.0.0")]
+[assembly:AssemblyVersion("0.2.1.0")]
 namespace MlmSetup {
  static class Setup {
   internal static readonly string InstallDir=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Programs","MLM Desktop");
@@ -38,7 +38,7 @@ namespace MlmSetup {
    using(var prefs=Registry.CurrentUser.OpenSubKey("Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize")){if(prefs!=null){systemMode=Convert.ToInt32(prefs.GetValue("SystemUsesLightTheme",0))==0?"Dark":"Light";appMode=Convert.ToInt32(prefs.GetValue("AppsUseLightTheme",0))==0?"Dark":"Light";}}
    theme=theme.Replace("{{WALLPAPER}}",Path.Combine(InstallDir,"assets","MLM Desktop.png")).Replace("{{SYSTEM_MODE}}",systemMode).Replace("{{APP_MODE}}",appMode);
    File.WriteAllText(ThemePath,theme,System.Text.Encoding.Unicode);
-   using(var key=Registry.CurrentUser.CreateSubKey(Key)){key.SetValue("DisplayName","MLM Desktop");key.SetValue("DisplayVersion","0.2.0");key.SetValue("Publisher","mlmvpn");key.SetValue("InstallLocation",InstallDir);key.SetValue("DisplayIcon",Path.Combine(InstallDir,"MLMDesktop.exe"));key.SetValue("UninstallString","\""+Path.Combine(InstallDir,"Uninstall.exe")+"\" --uninstall");key.SetValue("NoModify",1);key.SetValue("NoRepair",1);key.SetValue("EstimatedSize",18000);}
+   using(var key=Registry.CurrentUser.CreateSubKey(Key)){key.SetValue("DisplayName","MLM Desktop");key.SetValue("DisplayVersion","0.2.1");key.SetValue("Publisher","mlmvpn");key.SetValue("InstallLocation",InstallDir);key.SetValue("DisplayIcon",Path.Combine(InstallDir,"MLMDesktop.exe"));key.SetValue("UninstallString","\""+Path.Combine(InstallDir,"Uninstall.exe")+"\" --uninstall");key.SetValue("NoModify",1);key.SetValue("NoRepair",1);key.SetValue("EstimatedSize",18000);}
    MlmDesktop.Autostart.Ensure(Path.Combine(InstallDir,"MLMDesktop.exe"));
    Process.Start(new ProcessStartInfo(Path.Combine(InstallDir,"MLMDesktop.exe")){UseShellExecute=false,CreateNoWindow=true});
   }
